@@ -1,0 +1,19 @@
+{
+    "name": "my_music_card",
+    "version": "1.0.1",
+    "type": "module",
+    "scripts": {
+        "start": "node index.js",
+        "build": "rollup -c --bundleConfigAsCjs",
+        "upload-ftp": "node ftp-upload.js",
+        "postbuild": "npm run upload-ftp"
+    },
+    "devDependencies": {
+        "@rollup/plugin-replace": "^5.0.5",
+        "rollup": "^x.x.x",
+        "rollup-plugin-replace": "^2.2.0"
+    },
+    "dependencies": {
+        "basic-ftp": "^5.0.5"
+    }
+}
