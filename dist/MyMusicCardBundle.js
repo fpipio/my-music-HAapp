@@ -175,105 +175,107 @@ form {
     margin-left: auto; /* Posiziona l'elemento .track-duration a destra */
 }
 
-`;
 
-class MyMusicCardEditor extends HTMLElement {
-    // private properties
-    _config;
-    _hass;
-    _elements = {};
-
-    // Lifecycle
-    constructor() {
-        super();
-        this.doEditor();
-        this.doStyle();
-        this.doAttach();
-        this.doQueryElements();
-        this.doListen();
-    }
-
-    setConfig(config) {
-        this._config = config;
-        this.doUpdateConfig();
-    }
-
-    set hass(hass) {
-        this._hass = hass;
-        this.doUpdateHass();
-    }
-
-    onChanged(event) {
-        this.doMessageForUpdate(event);
-    }
-
-    // Jobs
-    doEditor() {
-        this._elements.editor = document.createElement("form");
-        this._elements.editor.innerHTML = `
-            <div class="row"><label class="label" for="plexServerUrl">Plex Server URL:</label><input class="value" id="plexServerUrl"></input></div>
-            <div class="row"><label class="label" for="authToken">Auth Token:</label><input class="value" id="authToken"></input></div>
-            <div class="row"><label class="label" for="activeLibrary">Active Library:</label><input class="value" id="activeLibrary"></input></div>
-            <div class="row"><label class="label" for="activePlayer">Active Player:</label><input class="value" id="activePlayer"></input></div>
-
-            
-        `;
-    }
-
-    doStyle() {
-        this._elements.style = document.createElement("style");
-        this._elements.style.textContent = styles; // Utilizza gli stili importati
-    }
-
-    doAttach() {
-        this.attachShadow({ mode: "open" });
-        this.shadowRoot.append(this._elements.style, this._elements.editor);
-    }
-
-    doQueryElements() {
-        this._elements.plexServerUrl = this._elements.editor.querySelector("#plexServerUrl");
-        this._elements.authToken = this._elements.editor.querySelector("#authToken");
-        this._elements.activeLibrary = this._elements.editor.querySelector("#activeLibrary");
-        this._elements.activePlayer = this._elements.editor.querySelector("#activePlayer");
-    }
-
-    doListen() {
-        this._elements.plexServerUrl.addEventListener("focusout", this.onChanged.bind(this));
-        this._elements.authToken.addEventListener("focusout", this.onChanged.bind(this));
-        this._elements.activeLibrary.addEventListener("focusout", this.onChanged.bind(this));
-        this._elements.activePlayer.addEventListener("focusout", this.onChanged.bind(this));
-        
-    }
-
-    doUpdateConfig() {
-        this._elements.plexServerUrl.value = this._config.plexServerUrl;
-        this._elements.authToken.value = this._config.authToken;
-        this._elements.activeLibrary.value = this._config.activeLibrary;
-        this._elements.activePlayer.value = this._config.activePlayer;
-    }
-
-    doUpdateHass() {}
-
-    doMessageForUpdate(changedEvent) {
-        // this._config is readonly, copy needed
-        const newConfig = Object.assign({}, this._config);
-        if (changedEvent.target.id === "plexServerUrl") {
-            newConfig.plexServerUrl = changedEvent.target.value;
-        } else if (changedEvent.target.id === "authToken") {
-            newConfig.authToken = changedEvent.target.value;
-        } else if (changedEvent.target.id === "activeLibrary") {
-            newConfig.activeLibrary = changedEvent.target.value;
-        } else if (changedEvent.target.id === "activePlayer") {
-            newConfig.activePlayer = changedEvent.target.value;
-        }
-        const messageEvent = new CustomEvent("config-changed", {
-            detail: { config: newConfig },
-            bubbles: true,
-            composed: true,
-        });
-        this.dispatchEvent(messageEvent);
-    }
+.playlist-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-gap: 10px;
 }
+
+.playlist-item {
+    border: 1px solid #ccc;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.playlist-item:hover {
+    transform: translateY(-5px);
+}
+
+.playlist-name {
+    font-weight: bold;
+}
+
+.tracks-count, .total-duration {
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* Stili per l'intestazione della playlist */
+.playlist-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.playlist-image {
+    width: 100px; /* Imposta la larghezza desiderata */
+    height: auto; /* Imposta l'altezza automaticamente in base all'immagine */
+    margin-right: 10px;
+}
+
+.playlist-title {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.total-duration {
+    margin-left: auto; /* Allinea la durata a destra */
+}
+
+/* Stili per le singole tracce */
+.track-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.triangle-icon {
+    margin-right: 10px;
+    cursor: pointer; /* Cambia il cursore al passaggio sopra l'icona */
+}
+
+.track-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.track-title {
+    font-weight: bold;
+}
+
+.author-album {
+    font-style: italic; /* Aggiunge stile corsivo all'autore */
+}
+
+.track-duration {
+    margin-left: auto; /* Allinea la durata a destra */
+}
+
+
+.playlist-type {
+    font-size: 14px;
+    font-style: italic;
+    margin-bottom: 5px;
+}
+
+.play-button {
+    margin-left: auto;
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.play-button:hover {
+    background-color: #0056b3;
+}
+
+`;
 
 function getMachineIdentifier(plexServerUrl, authToken) {
     return fetch(`${plexServerUrl}/identity`, {
@@ -299,6 +301,43 @@ function getMachineIdentifier(plexServerUrl, authToken) {
         console.error("Errore durante il recupero dell'ID della libreria della musica:", error);
     });
 }
+
+
+async function getMusicLibraries(plexServerUrl, authToken) {
+    try {
+        const response = await fetch(`${plexServerUrl}/library/sections`, {
+            headers: {
+                "X-Plex-Token": authToken,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Errore durante il recupero della lista delle librerie");
+        }
+
+        const data = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const libraries = xmlDoc.querySelectorAll('Directory[type="artist"]');
+
+        const musicLibraries = [];
+        libraries.forEach(library => {
+            const libraryName = library.getAttribute("title");
+            const libraryId = library.getAttribute("key");
+            const libraryData = {
+                libraryName: libraryName,
+                libraryId: libraryId
+            };
+            musicLibraries.push(libraryData);
+        });
+
+        return musicLibraries;
+    } catch (error) {
+        console.error("Errore durante il recupero delle librerie musicali:", error);
+        throw error;
+    }
+}
+
 
 
 function getMusicLibraryId(plexServerUrl, authToken, activeLibrary) {
@@ -477,10 +516,6 @@ async function getAlbumTracks(albumKey, plexServerUrl, authToken) {
 
         return trackList;
         
-
-
-
-
     } catch (error) {
         // Gestisci gli errori
         console.error('Errore durante il recupero delle tracce dell\'album:', error);
@@ -488,15 +523,314 @@ async function getAlbumTracks(albumKey, plexServerUrl, authToken) {
     }
 }
 
+
+async function getPlexPlaylists(plexServerUrl, authToken) {
+    try {
+        const response = await fetch(`${plexServerUrl}/playlists`, {
+            headers: {
+                "X-Plex-Token": authToken,
+            },
+        });
+        if (!response.ok) {
+            throw new Error("Failed to fetch Plex playlists");
+        }
+
+        const data = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const playlists = xmlDoc.querySelectorAll('Playlist');
+
+
+
+        const playlistList = [];
+        const linkTrascode = "/photo/:/transcode?width=200&height=220&minSize=1&upscale=1&url=";
+        playlists.forEach(playlist => {
+        const playlistsName = playlist.getAttribute("title");
+        const playlistDuration = playlist.getAttribute("duration");
+        const playlistId = playlist.getAttribute("ratingKey");
+        const playlistLength = playlist.getAttribute("leafCount");
+        const playlistImage = playlist.getAttribute("composite");
+        const playlistImageUrl = 
+        plexServerUrl +
+        linkTrascode +
+        playlistImage +
+        "&X-Plex-Token=" +
+        authToken;
+
+        const playlistData = {
+            playlistName: playlistsName,
+            playlistDuration: playlistDuration,
+            playlistId: playlistId,
+            playlistLength: playlistLength,
+            playlistImageUrl: playlistImageUrl
+        };
+            playlistList.push(playlistData);
+        });
+        return playlistList;
+    } catch (error) {
+        throw new Error(`Error fetching Plex playlists: ${error.message}`);
+    }
+}
+
+
+// Definisci la funzione PlaylistTracks
+async function getPlaylistTracks(playlistId, plexServerUrl, authToken) {
+    try {
+        // Effettua la richiesta API per ottenere la lista delle tracce dell'album
+        // Utilizza fetch o una libreria per effettuare la richiesta HTTP
+        const response = await fetch(`${plexServerUrl}/playlists/${playlistId}/items`, {
+            headers: {
+                "X-Plex-Token": authToken,
+            },
+        });
+        // Controlla lo stato della risposta
+        if (!response.ok) {
+            throw new Error('Errore nella richiesta API');
+        }
+
+        // Estrai i dati JSON dalla risposta
+
+        const data = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const tracks = xmlDoc.querySelectorAll("Track");
+
+        const trackList = [];
+//        const linkTrascode = "/photo/:/transcode?width=200&height=220&minSize=1&upscale=1&url=";
+        tracks.forEach(track => {
+            const trackName = track.getAttribute("title");
+            const trackDuration = track.getAttribute("duration");
+            const trackParentTitle = track.getAttribute("parentTitle");
+            const trackGrandparentTitle = track.getAttribute("grandparentTitle");
+            const trackId = track.getAttribute("ratingKey");
+
+            const trackData = {
+                name: trackName,
+                duration: trackDuration,
+                trackId: trackId,
+                albumName: trackParentTitle ,
+                authorName: trackGrandparentTitle
+
+            };
+            trackList.push(trackData);
+        });
+
+        return trackList;
+        
+    } catch (error) {
+        // Gestisci gli errori
+        console.error('Errore durante il recupero delle tracce dell\'album:', error);
+        throw error; // Rilancia l'errore per gestirlo nel chiamante
+    }
+}
+
+class MyMusicCardEditor extends HTMLElement {
+    // private properties
+    _config;
+    _hass;
+    _elements = {};
+
+    // Lifecycle
+    constructor() {
+        super();
+        this.doStyle();
+        this.doAttach();
+        this.doListen();
+    }
+
+    set hass(hass) {
+        this._hass = hass;
+        // Implement if needed
+    }
+
+    onChanged(event) {
+        this.doMessageForUpdate(event);
+    }
+
+    // Jobs
+    async doEditor() {
+        // Inizializza i campi di input con i valori della configurazione
+        this._elements.editor.innerHTML = `
+            <div id="errorMessage" style="color: red; display: none;">Errore: compila tutti i campi obbligatori.</div>
+            <div class="wrapper">
+                <div class="section">
+                    <h2>Player</h2>
+                    <label class="label" for="activePlayer">Active Player:</label>
+                    <input class="value" id="activePlayer" value="${this._config.player && this._config.player.activePlayer ? this._config.player.activePlayer : ''}">
+                    </input>
+                </div>
+                <div class="section">
+                    <h2>Music Provider</h2>
+                    <label class="label" for="provider">Provider:</label>
+                    <select class="value" id="provider">
+                        <option value="plex" ${this._config.musicProvider && this._config.musicProvider.provider === 'plex' ? 'selected' : ''}>Plex</option>
+                        <option value="spotify" ${this._config.musicProvider && this._config.musicProvider.provider === 'spotify' ? 'selected' : ''}>Spotify</option>
+                        <option value="radio" ${this._config.musicProvider && this._config.musicProvider.provider === 'radio' ? 'selected' : ''}>Radio</option>
+                    </select>
+                </div>
+                <div class="section">
+                    <h2>Other Settings</h2>
+                    <label class="label" for="plexServerUrl">Plex Server URL:</label>
+                    <input class="value" id="plexServerUrl" value="${this._config.plexServerUrl || ''}">
+                    </input>
+                    <label class="label" for="authToken">Auth Token:</label>
+                    <input class="value" id="authToken" value="${this._config.authToken || ''}">
+                    </input>
+                    <label class="label" for="sourceType">Source Type:</label>
+                    <select class="value" id="sourceType">
+                        <option value="library" ${this._config.sourceType === 'library' ? 'selected' : ''}>Library</option>
+                        <option value="playlist" ${this._config.sourceType === 'playlist' ? 'selected' : ''}>Playlist</option>
+                    </select>
+                    <div id="activeLibrarySection" style="display: ${this._config.sourceType === 'library' ? 'block' : 'none'};">
+                        <label class="label" for="activeLibrary">Active Library:</label>
+                        <input class="value" list="libraryOptions" id="activeLibrary">
+                        <datalist id="libraryOptions"></datalist>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Carica le librerie musicali solo se la configurazione contiene plexServerUrl e authToken
+        if (this._config.plexServerUrl && this._config.authToken && this._config.sourceType === 'library') {
+            try {
+                const libraries = await getMusicLibraries(this._config.plexServerUrl, this._config.authToken);
+                const activeLibraryDatalist = this._elements.editor.querySelector("#libraryOptions");
+                const activeLibraryInput = this._elements.editor.querySelector("#activeLibrary");
+                libraries.forEach(library => {
+                    const option = document.createElement("option");
+                    option.value = library.libraryName;
+                    activeLibraryDatalist.appendChild(option);
+                });
+                activeLibraryInput.setAttribute("list", "libraryOptions");
+
+                // Imposta il valore dell'input se esiste nella configurazione
+                if (this._config.activeLibrary) {
+                    activeLibraryInput.value = this._config.activeLibrary;
+                }
+            } catch (error) {
+                console.error('Errore durante il recupero delle librerie musicali:', error);
+            }
+        }
+
+        this.doQueryElements();
+        this.doListen();
+    }
+    
+
+    doStyle() {
+        this._elements.style = document.createElement("style");
+        this._elements.style.textContent = styles;
+    }
+
+    doAttach() {
+        this.attachShadow({ mode: "open" });
+        const style = document.createElement("style");
+        style.textContent = styles;
+        this.shadowRoot.appendChild(style);
+        this._elements.editor = document.createElement("form");
+        this._elements.editor.id = "editor";
+        this.shadowRoot.appendChild(this._elements.editor);
+    }   
+    
+    setConfig(config) {
+        this._config = config;
+        if (this._config) {
+            this.doEditor();
+        }
+    }
+
+    doQueryElements() {
+        this._elements.plexServerUrl = this.shadowRoot.querySelector("#plexServerUrl");
+        this._elements.authToken = this.shadowRoot.querySelector("#authToken");
+        this._elements.activeLibrary = this.shadowRoot.querySelector("#activeLibrary");
+        this._elements.activePlayer = this.shadowRoot.querySelector("#activePlayer");
+        this._elements.provider = this.shadowRoot.querySelector("#provider");
+        this._elements.sourceType = this.shadowRoot.querySelector("#sourceType");
+    }
+
+    doListen() {
+        // Assicurati che gli elementi siano stati trovati prima di aggiungere gli event listener
+        if (this._elements.plexServerUrl && this._elements.authToken && this._elements.activeLibrary && this._elements.activePlayer && this._elements.provider && this._elements.sourceType) {
+            this._elements.plexServerUrl.addEventListener("input", this.onChanged.bind(this));
+            this._elements.authToken.addEventListener("input", this.onChanged.bind(this));
+            this._elements.activeLibrary.addEventListener("change", this.onChanged.bind(this));
+            this._elements.activePlayer.addEventListener("input", this.onChanged.bind(this));
+            this._elements.provider.addEventListener("change", this.onChanged.bind(this));
+            this._elements.sourceType.addEventListener("change", this.onChanged.bind(this));
+        }
+    }
+
+doMessageForUpdate(changedEvent) {
+    const newConfig = Object.assign({}, this._config);
+    const errorMessage = this.shadowRoot.querySelector("#errorMessage");
+    if (changedEvent.target.id === "plexServerUrl") {
+        newConfig.plexServerUrl = changedEvent.target.value;
+    } else if (changedEvent.target.id === "authToken") {
+        newConfig.authToken = changedEvent.target.value;
+    } else if (changedEvent.target.id === "activeLibrary") {
+        newConfig.activeLibrary = changedEvent.target.value;
+    } else if (changedEvent.target.id === "activePlayer") {
+        newConfig.player = newConfig.player || {};
+        newConfig.player.activePlayer = changedEvent.target.value;
+    } else if (changedEvent.target.id === "provider") {
+        newConfig.musicProvider = newConfig.musicProvider || {};
+        newConfig.musicProvider.provider = changedEvent.target.value;
+        // Se il provider è impostato su "plex", controlla che plexServerUrl, authToken e sourceType siano compilati
+        if (changedEvent.target.value === "plex") {
+            if (!newConfig.plexServerUrl || !newConfig.authToken || !newConfig.sourceType) {
+                errorMessage.style.display = "block";
+                return;
+            }
+        }
+    } else if (changedEvent.target.id === "sourceType") {
+        newConfig.sourceType = changedEvent.target.value;
+        this.toggleActiveLibraryFieldVisibility(newConfig.sourceType);
+    }
+    errorMessage.style.display = "none"; // Nascondi il messaggio di errore se non ci sono problemi
+    const messageEvent = new CustomEvent("config-changed", {
+        detail: { config: newConfig },
+        bubbles: true,
+        composed: true,
+    });
+    this.dispatchEvent(messageEvent);
+}
+        
+    async loadMusicLibraries() {
+        try {
+            const libraries = await getMusicLibraries(this._config.plexServerUrl, this._config.authToken);
+            const libraryOptions = libraries.map(library => `<option value="${library.libraryId}">${library.libraryName}</option>`).join('');
+            const activeLibrarySelect = this.shadowRoot.querySelector("#activeLibrary");
+            activeLibrarySelect.innerHTML = libraryOptions;
+        } catch (error) {
+            console.error('Errore durante il recupero delle librerie musicali:', error);
+        }
+    }
+
+    connectedCallback() {
+        // Non è necessario chiamare doEditor() qui poiché viene già chiamato all'interno di setConfig() quando l'elemento è connesso
+    }
+
+    toggleActiveLibraryFieldVisibility(sourceType) {
+        const activeLibrarySection = this._elements.editor.querySelector("#activeLibrarySection");
+        activeLibrarySection.style.display = sourceType === 'library' ? 'block' : 'none';
+    }
+}
+
 // modules/utilities.js
 
 // Funzione per formattare la durata in ore, minuti e secondi
 function formatDuration(duration) {
-    const hours = Math.floor(duration / 3600000);
+    const days = Math.floor(duration / 86400000); // 24 * 60 * 60 * 1000
+    const hours = Math.floor((duration % 86400000) / 3600000);
     const minutes = Math.floor((duration % 3600000) / 60000);
     const seconds = Math.floor((duration % 60000) / 1000);
 
     let formattedDuration = '';
+
+    // Se ci sono giorni, li aggiungiamo al formato
+    if (days > 0) {
+        formattedDuration += `${days}d `;
+    }
 
     // Se ci sono ore, le aggiungiamo al formato
     if (hours > 0) {
@@ -515,8 +849,14 @@ function formatDuration(duration) {
 }
 
 
+
 async function playOnSonos(hass, config, machineIdentifier, trackId) {
-    console.log("wow");
+    console.log("machineIdentifier", machineIdentifier);
+    console.log("trackId", trackId);
+    console.log("hass", hass);
+    console.log("config", config);
+ 
+
     try {
         await hass.callService('media_player', 'play_media', {
             entity_id: hass.states[config.activePlayer].state,
@@ -528,9 +868,8 @@ async function playOnSonos(hass, config, machineIdentifier, trackId) {
     }
 }
 
-const timestamp = 1715503970772;
+const timestamp = 1715720032626;
 const scriptSrc = `/local/MyMusicCardBundle.js?v=${timestamp}`;
-
 
 
 
@@ -549,57 +888,84 @@ class MyMusicCard extends HTMLElement {
         this.doStyle();
         this.doAttach();
         this.doQueryElements();
-        
-//        this.doListen();
     }    
 
-
-
-    
     async setConfig(config) {
         this._config = config;
         this.doCheckConfig();
         this.doUpdateConfig();
-        this.retrieveMachineIdentifier();
     
         try {
-            // Utilizza await per ottenere il valore di musicLibraryId
-            const musicLibraryId = await this.retrieveMusicLibraryId();
-            
-
-            const artistLibrary = await this.retrieveArtistLibrary(musicLibraryId);
-            this.populateArtistList(artistLibrary);
-
-
+            // Gestisci il provider in base alla configurazione
+            await this.handleProvider();
         } catch (error) {
-            console.error("Errore durante il recupero dell'ID della libreria della musica:", error);
+            console.error("Errore durante la configurazione della card:", error);
         }
     }
     
 
-
     set hass(hass) {
         this._hass = hass;
-//        this.doUpdateHass()
     }
 
+    async handleProvider() {
+        console.log("this._config", this._config);
+        console.log("this._config.musicProvider.provider ", this._config.musicProvider.provider);
+        switch (this._config.musicProvider.provider) {
+            case "plex":
+                await this.handlePlexProvider();
+                break;
+            case "spotify":
+                this.handleSpotifyProvider();
+                break;
+            case "radio":
+                this.handleRadioProvider();
+                break;
+            default:
+                console.error("Provider non supportato:", this._config.provider);
+        }
+    }
 
+    async handlePlexProvider() {
+        await this.retrieveMachineIdentifier();
+        
+        try {
+            if (this._config.sourceType === "library") {
+                const musicLibraryId = await this.retrieveMusicLibraryId();
+                const artistLibrary = await this.retrieveArtistLibrary(musicLibraryId);
+                this.populateArtistList(artistLibrary);
+            } else if (this._config.sourceType === "playlist") {
+                const playlists = await this.retrievePlexPlaylists();
+                console.log("playlists!: ", playlists);
+                this.populatePlaylistList(playlists);
+            }
+        } catch (error) {
+            console.error("Errore durante il recupero della libreria musicale o delle playlist:", error);
+        }
+    }
+    
+
+    handleSpotifyProvider() {
+        console.log("Mi occuperò di Spotify più tardi");
+    }
+
+    handleRadioProvider() {
+        console.log("Mi occuperò delle radio più tardi");
+    }
 
     async retrieveMachineIdentifier() {
         const confPlexServerUrl = this._config.plexServerUrl;
         const confAuthToken = this._config.authToken;
-    
+
         try {
             // Effettua la chiamata alle API di Plex per ottenere la lista degli album dell'artista
             const machineIdentifier = await getMachineIdentifier(confPlexServerUrl, confAuthToken);
             this._machineIdentifier = machineIdentifier;
-         } catch (error) {
+        } catch (error) {
             console.error("Errore durante il recupero degli album dell'artista:", error);
             throw error;
         }
     }
-
-
 
     onClicked() {
         this.doToggle();
@@ -626,12 +992,25 @@ class MyMusicCard extends HTMLElement {
         return friendlyName ? friendlyName : this.getEntityID();
     }
 
-    // jobs
+
     doCheckConfig() {
-        if (!this._config.entity) {
-            throw new Error('Please define an entity!');
+        if (!this._config || !this._config.player || !this._config.player.activePlayer) {
+            throw new Error("Please define an activePlayer!");
         }
     }
+
+
+    doQueryElements() {
+        const card = this._elements.card;
+        this._elements.artistContainer = card.querySelector(".artist-container");
+        this._elements.playlistContainer = card.querySelector(".playlist-container");
+        this._elements.searchInput = card.querySelector(".search-input");
+        this._elements.searchInput.addEventListener("input", () => {
+            this.filterArtistList(this._elements.searchInput.value);
+        });
+    }
+
+
 
     doCard() {
         this._elements.card = document.createElement("ha-card");
@@ -643,6 +1022,10 @@ class MyMusicCard extends HTMLElement {
         // Aggiungi un div artists-card
         const artistsCard = document.createElement("div");
         artistsCard.classList.add("artists-card");
+
+        // Aggiungi un div playlists-card
+        const playlistsCard = document.createElement("div");
+        playlistsCard.classList.add("playlists-card");        
     
         // Aggiungi un input per la casella di ricerca
         const searchInput = document.createElement("input");
@@ -655,14 +1038,24 @@ class MyMusicCard extends HTMLElement {
         const artistContainer = document.createElement("div");
         artistContainer.classList.add("artist-container");
         artistsCard.appendChild(artistContainer);
+
+        // Aggiungi un div per contenere la lista delle playlist
+        const playlistContainer = document.createElement("div");
+        playlistContainer.classList.add("playlist-container");
+        playlistsCard.appendChild(playlistContainer);
+        
     
         // Aggiungi artists-card a cardContent
         cardContent.appendChild(artistsCard);
-    
+
+        // Aggiungi artists-card a cardContent
+        cardContent.appendChild(playlistsCard);
+        
+
         // Aggiungi cardContent all'elemento card
         this._elements.card.appendChild(cardContent);
+
     }
-    
 
     doStyle() {
         this._elements.style = document.createElement("style");
@@ -674,18 +1067,14 @@ class MyMusicCard extends HTMLElement {
         this.shadowRoot.append(this._elements.style, this._elements.card);
     }
 
-    doQueryElements() {
-        const card = this._elements.card;
-        this._elements.artistContainer = card.querySelector(".artist-container");
-    }
-    
+//    doQueryElements() {
+//        const card = this._elements.card;
+//        this._elements.artistContainer = card.querySelector(".artist-container");
+//        this._elements.playlistContainer = card.querySelector(".playlist-container");
+//    }
+
     doUpdateConfig() {
-//        if (this.getHeader()) {
-//            this._elements.card.setAttribute("header", this.getHeader());
-//        } else {
-//            this._elements.card.removeAttribute("header");
-//        }
-          this._elements.card.removeAttribute("header");
+        this._elements.card.removeAttribute("header");
     }
 
     async retrieveMusicLibraryId() {
@@ -694,66 +1083,127 @@ class MyMusicCard extends HTMLElement {
         const confActiveLibrary = this._config.activeLibrary;
 
         try {
-            const musicLibraryId = await getMusicLibraryId(confPlexServerUrl, confAuthToken, confActiveLibrary); // Utilizzare la funzione importata
+            const musicLibraryId = await getMusicLibraryId(confPlexServerUrl, confAuthToken, confActiveLibrary);
             return musicLibraryId;
-            // Continua a costruire il resto della tua card qui...
         } catch (error) {
             console.error("Errore durante il recupero dell'ID della libreria della musica:", error);
         }
     }
+
+    async retrievePlexPlaylists() {
+        const confPlexServerUrl = this._config.plexServerUrl;
+        const confAuthToken = this._config.authToken;
+    
+        try {
+            // Effettua la chiamata alle API di Plex per ottenere la lista delle playlist
+            const playlists = await getPlexPlaylists(confPlexServerUrl, confAuthToken);
+            return playlists;
+        } catch (error) {
+            console.error("Errore durante il recupero delle playlist da Plex:", error);
+            throw error;
+        }
+    }
+    
+
 
     async retrieveArtistLibrary(musicLibraryId) {
         const confPlexServerUrl = this._config.plexServerUrl;
         const confAuthToken = this._config.authToken;
 
         try {
-            const artistLibrary = await getArtistLibrary(musicLibraryId, confPlexServerUrl, confAuthToken); // Utilizzare la funzione importata
+            const artistLibrary = await getArtistLibrary(musicLibraryId, confPlexServerUrl, confAuthToken);
             return artistLibrary;
-            // Continua a costruire il resto della tua card qui...
         } catch (error) {
             console.error("Errore durante il recupero dell'ID della libreria della musica:", error);
         }
     }
 
     populateArtistList(artistLibrary) {
-        // Ottieni l'elemento in cui inserire la lista degli artisti
         const artistContainer = this._elements.artistContainer;
         if (!artistContainer) {
             console.error("Elemento artist-container non trovato. Assicurati che esista nell'HTML.");
             return;
         }
 
-        // Pulisci eventuali contenuti preesistenti
         artistContainer.innerHTML = "";
 
-    // Crea e aggiungi gli elementi degli artisti alla card
         artistLibrary.forEach(artist => {
             const artistItem = document.createElement("div");
             artistItem.classList.add("artist-item");
 
-            // Crea l'elemento immagine per la foto dell'artista
             const artistImage = document.createElement("img");
             artistImage.classList.add("artist-image");
-            artistImage.src = artist.image; // Assumi che ci sia un campo 'image' nell'oggetto artista che contenga l'URL dell'immagine
-            artistImage.alt = artist.name; // Assumi che ci sia un campo 'name' nell'oggetto artista che contenga il nome dell'artista
+            artistImage.src = artist.image;
+            artistImage.alt = artist.name;
             artistItem.appendChild(artistImage);
 
-            // Crea l'elemento per il nome dell'artista
             const artistName = document.createElement("div");
             artistName.classList.add("artist-name");
-            artistName.textContent = artist.name; // Assumi che ci sia un campo 'name' nell'oggetto artista che contenga il nome dell'artista
+            artistName.textContent = artist.name;
             artistItem.appendChild(artistName);
 
             artistItem.addEventListener("click", () => {
                 this.showArtistDetail(artist);
             });
 
-            // Aggiungi l'elemento dell'artista al contenitore degli artisti
             artistContainer.appendChild(artistItem);
         });
     }
 
+    populatePlaylistList(playlists) {
+        this.hideSearchInput();
+        const playlistContainer = this._elements.playlistContainer;
+        if (!playlistContainer) {
+            console.error("Elemento playlist-container non trovato. Assicurati che esista nell'HTML.");
+            return;
+        }
+    
+        // Cancella il contenuto dell'elemento playlistContainer
+        playlistContainer.innerHTML = "";
+    
+        // Itera attraverso le playlist e crea elementi HTML per ognuna
+        playlists.forEach(playlist => {
+            //elimino la playlist di plex "All Music", troppo grande e non ha senso
+            if (playlist.playlistLength > 0 && playlist.playlistName !== "All Music") {
+                const playlistItem = document.createElement("div");
+                playlistItem.classList.add("playlist-item");
+    
+                // Immagine della playlist
+                const playlistImage = document.createElement("img");
+                playlistImage.classList.add("playlist-image");
+                playlistImage.src = playlist.playlistImageUrl;
+                playlistItem.appendChild(playlistImage);
+    
+                // Nome della playlist
+                const playlistName = document.createElement("div");
+                playlistName.classList.add("playlist-name");
+                playlistName.textContent = playlist.playlistName;
+                playlistItem.appendChild(playlistName);
+    
+                // Numero di tracce nella playlist
+                const tracksCount = document.createElement("div");
+                tracksCount.classList.add("tracks-count");
+                tracksCount.textContent = `Tracks: ${playlist.playlistLength}`;
+                playlistItem.appendChild(tracksCount);
+    
+                // Durata totale della playlist
+                const totalDuration = document.createElement("div");
+                totalDuration.classList.add("total-duration");
+                totalDuration.textContent = `Duration: ${formatDuration(playlist.playlistDuration)}`;
+                playlistItem.appendChild(totalDuration);
+    
+                // Aggiungi un gestore di eventi al clic sulla playlist
+                playlistItem.addEventListener("click", () => {
+                    this.showPlaylistDetail(playlist);
+                });
+    
+                playlistContainer.appendChild(playlistItem);
+            }
+        });
+    }
+        
 
+    
     async showArtistDetail(artist) {
         const cardContent = this._elements.card.querySelector(".card-content");
         const artistsCard = this._elements.card.querySelector(".artists-card");
@@ -871,16 +1321,14 @@ class MyMusicCard extends HTMLElement {
     
         cardContent.appendChild(artistDetail);
     }
+
+
     
-
-
-
 
     async showAlbumDetail(album) {
         const cardContent = this._elements.card.querySelector(".card-content");
         const artistDetail = this._elements.card.querySelector(".artist-detail");
         artistDetail.style.display = "none";
-        console.log("Album: ", album);
 
         const albumDetail = document.createElement("div");
         albumDetail.classList.add("album-detail");
@@ -952,7 +1400,8 @@ class MyMusicCard extends HTMLElement {
                     trackItem.appendChild(trackName);
 
                     // Aggiungi un gestore di eventi al clic sull'icona per gestire l'evento clic sulla traccia
-                    triangleIcon.addEventListener("click", () => {
+                    triangleIcon.addEventListener("click", (event) => {
+                        event.stopPropagation();
                         playOnSonos(this._hass, this._config, this._machineIdentifier, track.trackId);
                     });
 
@@ -986,18 +1435,136 @@ class MyMusicCard extends HTMLElement {
         cardContent.appendChild(albumDetail);
     }
 
+    
+    async showPlaylistDetail(playlist) {
+        const cardContent = this._elements.card.querySelector(".card-content");
+        const playlistsCard = this._elements.card.querySelector(".playlists-card");
+        playlistsCard.style.display = "none";
+    
+        const playlistDetail = document.createElement("div");
+        playlistDetail.classList.add("playlist-detail");
+    
+        // Aggiungi l'intestazione della playlist
+        const playlistHeader = document.createElement("div");
+        playlistHeader.classList.add("playlist-header");
+    
+        // Immagine della playlist
+        const playlistImage = document.createElement("img");
+        playlistImage.classList.add("playlist-image");
+        playlistImage.src = playlist.playlistImageUrl;
+        playlistHeader.appendChild(playlistImage);
+    
+        // Raggruppa playlist-title, playlist-type e play-button in un unico div
+        const playlistInfo = document.createElement("div");
+        playlistInfo.classList.add("playlist-info");
+    
+        // Titolo della playlist
+        const playlistTitle = document.createElement("div");
+        playlistTitle.classList.add("playlist-title");
+        playlistTitle.textContent = playlist.playlistName;
+        playlistInfo.appendChild(playlistTitle);
+    
+        // Aggiungi la scritta "Playlist" sotto il titolo della playlist
+        const playlistType = document.createElement("div");
+        playlistType.classList.add("playlist-type");
+        playlistType.textContent = "Playlist";
+        playlistInfo.appendChild(playlistType);
+    
+        // Aggiungi il tasto "Riproduci"
+        const playButton = document.createElement("button");
+        playButton.classList.add("play-button");
+        playButton.textContent = "Riproduci";
+
+        playButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            playOnSonos(this._hass, this._config, this._machineIdentifier, playlist.playlistId);
+        });
 
 
-
-
+        playlistInfo.appendChild(playButton);
+    
+        playlistHeader.appendChild(playlistInfo);
+    
+        playlistDetail.appendChild(playlistHeader);
+    
+        // Effettua la chiamata alle API per ottenere la lista delle tracce della playlist
+        try {
+            const tracks = await this.retrievePlaylistTracks(playlist.playlistId);
+    
+            if (tracks && Array.isArray(tracks)) {
+                console.log("tracks: ", tracks);
+                // Crea un div per contenere la lista delle tracce
+                const trackList = document.createElement("div");
+                trackList.classList.add("track-list");
+    
+                tracks.forEach(track => {
+                    // Crea un div per ogni traccia
+                    const trackItem = document.createElement("div");
+                    trackItem.classList.add("track-item");
+    
+                    // Aggiungi l'icona del triangolo a sinistra
+                    const triangleIcon = document.createElement("div");
+                    triangleIcon.classList.add("triangle-icon");
+                    triangleIcon.textContent = "\u25B6";
+                    trackItem.appendChild(triangleIcon);
+    
+                    // Contenitore per il titolo, l'autore e l'album
+                    const trackDetails = document.createElement("div");
+                    trackDetails.classList.add("track-details");
+    
+                    // Titolo del brano in grassetto
+                    const trackTitle = document.createElement("div");
+                    trackTitle.classList.add("track-title");
+                    trackTitle.textContent = track.name;
+                    trackDetails.appendChild(trackTitle);
+    
+                    // Autore e Album
+                    const authorAlbum = document.createElement("div");
+                    authorAlbum.classList.add("author-album");
+                    authorAlbum.textContent = `${track.authorName} - ${track.albumName}`;
+                    trackDetails.appendChild(authorAlbum);
+    
+                    trackItem.appendChild(trackDetails);
+    
+                    // Aggiungi la durata del brano allineata a destra
+                    const trackDuration = document.createElement("div");
+                    trackDuration.classList.add("track-duration");
+                    trackDuration.textContent = formatDuration(track.duration);
+                    trackItem.appendChild(trackDuration);
+    
+                    // Aggiungi un gestore di eventi per il clic sull'icona del triangolo
+                    triangleIcon.addEventListener("click", (event) => {
+                        event.stopPropagation();
+                        playOnSonos(this._hass, this._config, this._machineIdentifier, track.trackId);
+                    });
+    
+                    trackList.appendChild(trackItem);
+                });
+    
+                playlistDetail.appendChild(trackList);
+            }    
+    
+        } catch (error) {
+            console.error("Errore durante il recupero delle tracce della playlist:", error);
+        }
+    
+        // Aggiungi un gestore di eventi per nascondere l'elemento quando ci si clicca sopra
+        playlistDetail.addEventListener("click", () => {
+            this.hidePlaylistDetail();
+        });
+    
+        cardContent.appendChild(playlistDetail);
+    }
+    
+    
+ 
+    
 
     async retrieveArtistAlbums(artistId) {
         const confPlexServerUrl = this._config.plexServerUrl;
         const confAuthToken = this._config.authToken;
-        
 
         try {
-            // Effettua la chiamata alle API di Plex per ottenere la lista degli album dell'artista
             const albums = await getArtistAlbums(artistId, confPlexServerUrl, confAuthToken);
             return albums;
         } catch (error) {
@@ -1006,13 +1573,11 @@ class MyMusicCard extends HTMLElement {
         }
     }
 
-
     async retrieveAlbumTracks(albumKey) {
         const confPlexServerUrl = this._config.plexServerUrl;
         const confAuthToken = this._config.authToken;
 
         try {
-            // Effettua la chiamata alle API di Plex per ottenere la lista degli album dell'artista
             const tracks = await getAlbumTracks(albumKey, confPlexServerUrl, confAuthToken);
             return tracks;
         } catch (error) {
@@ -1023,8 +1588,19 @@ class MyMusicCard extends HTMLElement {
 
 
 
+    async retrievePlaylistTracks(playlistId) {
+        const confPlexServerUrl = this._config.plexServerUrl;
+        const confAuthToken = this._config.authToken;
 
-    // Definisci la funzione hideArtistDetail per gestire l'evento click e invertire la visibilità di artistsCard e artist-detail
+        try {
+            const tracks = await getPlaylistTracks(playlistId, confPlexServerUrl, confAuthToken);
+            return tracks;
+        } catch (error) {
+            console.error("Errore durante il recupero delle tracce dell'album:", error);
+            throw error;
+        }
+    }
+
     hideArtistDetail() {
         const artistsCard = this._elements.card.querySelector(".artists-card");
         const artistDetail = this._elements.card.querySelector(".artist-detail");
@@ -1032,31 +1608,32 @@ class MyMusicCard extends HTMLElement {
         artistDetail.parentNode.removeChild(artistDetail);
     }
 
+    hidePlaylistDetail() {
+        const playlistsCard = this._elements.card.querySelector(".playlists-card");
+        const playlistDetail = this._elements.card.querySelector(".playlist-detail");
+        playlistsCard.style.display = "block";
+        playlistDetail.parentNode.removeChild(playlistDetail);
+    }
+
+
     hideAlbumDetail() {
-//        const artistsCard = this._elements.card.querySelector(".artists-card");
         const artistDetail = this._elements.card.querySelector(".artist-detail");
         const albumDetail = this._elements.card.querySelector(".album-detail");
         artistDetail.style.display = "block";
         albumDetail.parentNode.removeChild(albumDetail);
-    }    
-
-
-    doQueryElements() {
-        const card = this._elements.card;
-        this._elements.artistContainer = card.querySelector(".artist-container");
-//        this._elements.artistList = card.querySelector(".artist-list");
-        this._elements.searchInput = card.querySelector(".search-input");
-        this._elements.searchInput.addEventListener("input", () => {
-            this.filterArtistList(this._elements.searchInput.value);
-        });
     }
 
+
+
+
+
+    
     filterArtistList(searchTerm) {
         const artistItems = this._elements.card.querySelectorAll(".artist-item");
-    
+
         artistItems.forEach(artistItem => {
             const artistName = artistItem.querySelector(".artist-name").textContent.toLowerCase();
-    
+
             if (artistName.includes(searchTerm.toLowerCase())) {
                 artistItem.style.display = "block";
             } else {
@@ -1064,7 +1641,12 @@ class MyMusicCard extends HTMLElement {
             }
         });
     }
-    
+
+    hideSearchInput() {
+        const searchInput = this._elements.card.querySelector(".search-input");
+        searchInput.remove();
+    }
+
     // configuration defaults
     static getStubConfig() {
         return { entity: "input_boolean.tcwsd" }
@@ -1077,7 +1659,7 @@ class MyMusicCard extends HTMLElement {
 }
 
 customElements.define('my-music-card', MyMusicCard);
-customElements.define("my-music-card-editor",MyMusicCardEditor);
+customElements.define("my-music-card-editor", MyMusicCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({

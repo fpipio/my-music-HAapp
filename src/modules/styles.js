@@ -175,4 +175,104 @@ form {
     margin-left: auto; /* Posiziona l'elemento .track-duration a destra */
 }
 
+
+.playlist-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-gap: 10px;
+}
+
+.playlist-item {
+    border: 1px solid #ccc;
+    padding: 10px;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.playlist-item:hover {
+    transform: translateY(-5px);
+}
+
+.playlist-name {
+    font-weight: bold;
+}
+
+.tracks-count, .total-duration {
+    margin-top: 5px;
+    font-size: 0.9em;
+    color: #666;
+}
+
+/* Stili per l'intestazione della playlist */
+.playlist-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.playlist-image {
+    width: 100px; /* Imposta la larghezza desiderata */
+    height: auto; /* Imposta l'altezza automaticamente in base all'immagine */
+    margin-right: 10px;
+}
+
+.playlist-title {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.total-duration {
+    margin-left: auto; /* Allinea la durata a destra */
+}
+
+/* Stili per le singole tracce */
+.track-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.triangle-icon {
+    margin-right: 10px;
+    cursor: pointer; /* Cambia il cursore al passaggio sopra l'icona */
+}
+
+.track-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.track-title {
+    font-weight: bold;
+}
+
+.author-album {
+    font-style: italic; /* Aggiunge stile corsivo all'autore */
+}
+
+.track-duration {
+    margin-left: auto; /* Allinea la durata a destra */
+}
+
+
+.playlist-type {
+    font-size: 14px;
+    font-style: italic;
+    margin-bottom: 5px;
+}
+
+.play-button {
+    margin-left: auto;
+    padding: 5px 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.play-button:hover {
+    background-color: #0056b3;
+}
+
 `;

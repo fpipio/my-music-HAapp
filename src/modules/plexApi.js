@@ -26,6 +26,43 @@ export function getMachineIdentifier(plexServerUrl, authToken) {
 }
 
 
+export async function getMusicLibraries(plexServerUrl, authToken) {
+    try {
+        const response = await fetch(`${plexServerUrl}/library/sections`, {
+            headers: {
+                "X-Plex-Token": authToken,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Errore durante il recupero della lista delle librerie");
+        }
+
+        const data = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const libraries = xmlDoc.querySelectorAll('Directory[type="artist"]');
+
+        const musicLibraries = [];
+        libraries.forEach(library => {
+            const libraryName = library.getAttribute("title");
+            const libraryId = library.getAttribute("key");
+            const libraryData = {
+                libraryName: libraryName,
+                libraryId: libraryId
+            };
+            musicLibraries.push(libraryData);
+        });
+
+        return musicLibraries;
+    } catch (error) {
+        console.error("Errore durante il recupero delle librerie musicali:", error);
+        throw error;
+    }
+}
+
+
+
 export function getMusicLibraryId(plexServerUrl, authToken, activeLibrary) {
     return fetch(`${plexServerUrl}/library/sections`, {
         headers: {
@@ -206,10 +243,107 @@ export async function getAlbumTracks(albumKey, plexServerUrl, authToken) {
 
         return trackList;
         
+    } catch (error) {
+        // Gestisci gli errori
+        console.error('Errore durante il recupero delle tracce dell\'album:', error);
+        throw error; // Rilancia l'errore per gestirlo nel chiamante
+    }
+}
+
+
+export async function getPlexPlaylists(plexServerUrl, authToken) {
+    try {
+        const response = await fetch(`${plexServerUrl}/playlists`, {
+            headers: {
+                "X-Plex-Token": authToken,
+            },
+        });
+        if (!response.ok) {
+            throw new Error("Failed to fetch Plex playlists");
+        }
+
+        const data = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const playlists = xmlDoc.querySelectorAll('Playlist');
 
 
 
+        const playlistList = [];
+        const linkTrascode = "/photo/:/transcode?width=200&height=220&minSize=1&upscale=1&url=";
+        playlists.forEach(playlist => {
+        const playlistsName = playlist.getAttribute("title");
+        const playlistDuration = playlist.getAttribute("duration");
+        const playlistId = playlist.getAttribute("ratingKey");
+        const playlistLength = playlist.getAttribute("leafCount");
+        const playlistImage = playlist.getAttribute("composite");
+        const playlistImageUrl = 
+        plexServerUrl +
+        linkTrascode +
+        playlistImage +
+        "&X-Plex-Token=" +
+        authToken;
 
+        const playlistData = {
+            playlistName: playlistsName,
+            playlistDuration: playlistDuration,
+            playlistId: playlistId,
+            playlistLength: playlistLength,
+            playlistImageUrl: playlistImageUrl
+        };
+            playlistList.push(playlistData);
+        });
+        return playlistList;
+    } catch (error) {
+        throw new Error(`Error fetching Plex playlists: ${error.message}`);
+    }
+}
+
+
+// Definisci la funzione PlaylistTracks
+export async function getPlaylistTracks(playlistId, plexServerUrl, authToken) {
+    try {
+        // Effettua la richiesta API per ottenere la lista delle tracce dell'album
+        // Utilizza fetch o una libreria per effettuare la richiesta HTTP
+        const response = await fetch(`${plexServerUrl}/playlists/${playlistId}/items`, {
+            headers: {
+                "X-Plex-Token": authToken,
+            },
+        });
+        // Controlla lo stato della risposta
+        if (!response.ok) {
+            throw new Error('Errore nella richiesta API');
+        }
+
+        // Estrai i dati JSON dalla risposta
+
+        const data = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, "text/xml");
+        const tracks = xmlDoc.querySelectorAll("Track");
+
+        const trackList = [];
+//        const linkTrascode = "/photo/:/transcode?width=200&height=220&minSize=1&upscale=1&url=";
+        tracks.forEach(track => {
+            const trackName = track.getAttribute("title");
+            const trackDuration = track.getAttribute("duration");
+            const trackParentTitle = track.getAttribute("parentTitle");
+            const trackGrandparentTitle = track.getAttribute("grandparentTitle");
+            const trackId = track.getAttribute("ratingKey");
+
+            const trackData = {
+                name: trackName,
+                duration: trackDuration,
+                trackId: trackId,
+                albumName: trackParentTitle ,
+                authorName: trackGrandparentTitle
+
+            };
+            trackList.push(trackData);
+        });
+
+        return trackList;
+        
     } catch (error) {
         // Gestisci gli errori
         console.error('Errore durante il recupero delle tracce dell\'album:', error);
