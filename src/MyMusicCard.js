@@ -72,7 +72,6 @@ class MyMusicCard extends HTMLElement {
 
     async handlePlexProvider() {
         await this.retrieveMachineIdentifier();
-        
         try {
             if (this._config.sourceType === "library") {
                 const musicLibraryId = await this.retrieveMusicLibraryId();
@@ -88,9 +87,21 @@ class MyMusicCard extends HTMLElement {
         }
     }
     
+    async handleSpotifyProvider() {
+        try {
+            // Autenticazione con Spotify
+            const spotifyAPI = new SpotifyAPI();
+            await spotifyAPI.authenticate();
 
-    handleSpotifyProvider() {
-        console.log("Mi occuperò di Spotify più tardi");
+            // Ottenere le playlist dell'utente
+            const playlists = await spotifyAPI.getPlaylists();
+            console.log("Spotify playlists:", playlists);
+
+            // Popolare la lista delle playlist nell'interfaccia
+    //        this.populateSpotifyPlaylistList(playlists);
+        } catch (error) {
+            console.error("Errore durante il recupero delle playlist da Spotify:", error);
+        }
     }
 
     handleRadioProvider() {

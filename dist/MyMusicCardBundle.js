@@ -868,7 +868,7 @@ async function playOnSonos(hass, config, machineIdentifier, trackId) {
     }
 }
 
-const timestamp = 1715720032626;
+const timestamp = 1715850304691;
 const scriptSrc = `/local/MyMusicCardBundle.js?v=${timestamp}`;
 
 
@@ -928,7 +928,7 @@ class MyMusicCard extends HTMLElement {
 
     async handlePlexProvider() {
         await this.retrieveMachineIdentifier();
-        
+        console.log("hass!!!", this._hass);
         try {
             if (this._config.sourceType === "library") {
                 const musicLibraryId = await this.retrieveMusicLibraryId();
