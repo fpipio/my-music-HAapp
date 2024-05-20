@@ -32,20 +32,43 @@ export function formatDuration(duration) {
 
 
 
-export async function playOnSonos(hass, config, machineIdentifier, trackId) {
-    console.log("machineIdentifier", machineIdentifier);
-    console.log("trackId", trackId);
-    console.log("hass", hass);
-    console.log("config", config);
- 
+export async function playOnSonos(hass, config, machineIdentifier, type, id) {
+    if (config.musicProvider.provider === 'plex') {
+        try {
+            console.log("Config", config.musicProvider.provider);
+            await hass.callService('media_player', 'play_media', {
+                entity_id: hass.states[config.activePlayer].state,
+                media_content_type: 'music',
+                media_content_id: `plex://${machineIdentifier}/${id}`
+            });
+        } catch (error) {
+            console.error(`Error playing track:`, error);
+        }
+    
+    } else if (config.musicProvider.provider === 'spotify') {
+        try {
+            await hass.callService('media_player', 'play_media', {
+                entity_id: hass.states[config.activePlayer].state,
+                media_content_type: type,
+                media_content_id: `https://open.spotify.com/${type}/${id}`
+            });
+        } catch (error) {
+            console.error(`Error playing playlist:`, error);
+        }
 
+
+    }
+}
+
+ 
+export async function playSpotifyOnSonos(hass, config, type, id) {
     try {
         await hass.callService('media_player', 'play_media', {
             entity_id: hass.states[config.activePlayer].state,
-            media_content_type: 'music',
-            media_content_id: `plex://${machineIdentifier}/${trackId}`
+            media_content_type: 'playlist',
+            media_content_id: `https://open.spotify.com/${type}/${id}`
         });
     } catch (error) {
-        console.error(`Error playing track:`, error);
+        console.error(`Error playing playlist:`, error);
     }
 }

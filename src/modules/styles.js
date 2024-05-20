@@ -123,6 +123,8 @@ form {
     height: 200px;
     object-fit: cover;
     margin-bottom: 10px;
+    aspect-ratio: 1 / 1;
+
 }
 
 .album-name {
@@ -152,6 +154,7 @@ form {
     float: right; /* Posiziona la durata della traccia a destra */
     font-size: 14px;
     color: #666;
+    margin-left: auto; 
 }
 
 .artist-detail .artist-name {
@@ -171,15 +174,13 @@ form {
     margin-right: 10px; /* Aggiunge spazio tra gli elementi */
 }
 
-.track-duration {
-    margin-left: auto; /* Posiziona l'elemento .track-duration a destra */
-}
 
 
 .playlist-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
     grid-gap: 10px;
+
 }
 
 .playlist-item {
@@ -211,9 +212,13 @@ form {
 }
 
 .playlist-image {
-    width: 100px; /* Imposta la larghezza desiderata */
+    width: 145px; /* Imposta la larghezza desiderata */
     height: auto; /* Imposta l'altezza automaticamente in base all'immagine */
     margin-right: 10px;
+    object-fit: cover;
+    aspect-ratio: 1 / 1;
+
+
 }
 
 .playlist-title {
@@ -244,15 +249,14 @@ form {
 
 .track-title {
     font-weight: bold;
+    padding-right: 5px;
 }
 
 .author-album {
     font-style: italic; /* Aggiunge stile corsivo all'autore */
+    padding-right: 5px;
 }
 
-.track-duration {
-    margin-left: auto; /* Allinea la durata a destra */
-}
 
 
 .playlist-type {

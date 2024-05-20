@@ -123,6 +123,8 @@ form {
     height: 200px;
     object-fit: cover;
     margin-bottom: 10px;
+    aspect-ratio: 1 / 1;
+
 }
 
 .album-name {
@@ -152,6 +154,7 @@ form {
     float: right; /* Posiziona la durata della traccia a destra */
     font-size: 14px;
     color: #666;
+    margin-left: auto; 
 }
 
 .artist-detail .artist-name {
@@ -171,15 +174,13 @@ form {
     margin-right: 10px; /* Aggiunge spazio tra gli elementi */
 }
 
-.track-duration {
-    margin-left: auto; /* Posiziona l'elemento .track-duration a destra */
-}
 
 
 .playlist-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
     grid-gap: 10px;
+
 }
 
 .playlist-item {
@@ -211,9 +212,13 @@ form {
 }
 
 .playlist-image {
-    width: 100px; /* Imposta la larghezza desiderata */
+    width: 145px; /* Imposta la larghezza desiderata */
     height: auto; /* Imposta l'altezza automaticamente in base all'immagine */
     margin-right: 10px;
+    object-fit: cover;
+    aspect-ratio: 1 / 1;
+
+
 }
 
 .playlist-title {
@@ -244,15 +249,14 @@ form {
 
 .track-title {
     font-weight: bold;
+    padding-right: 5px;
 }
 
 .author-album {
     font-style: italic; /* Aggiunge stile corsivo all'autore */
+    padding-right: 5px;
 }
 
-.track-duration {
-    margin-left: auto; /* Allinea la durata a destra */
-}
 
 
 .playlist-type {
@@ -850,25 +854,143 @@ function formatDuration(duration) {
 
 
 
-async function playOnSonos(hass, config, machineIdentifier, trackId) {
-    console.log("machineIdentifier", machineIdentifier);
-    console.log("trackId", trackId);
-    console.log("hass", hass);
-    console.log("config", config);
- 
+async function playOnSonos(hass, config, machineIdentifier, type, id) {
+    if (config.musicProvider.provider === 'plex') {
+        try {
+            console.log("Config", config.musicProvider.provider);
+            await hass.callService('media_player', 'play_media', {
+                entity_id: hass.states[config.activePlayer].state,
+                media_content_type: 'music',
+                media_content_id: `plex://${machineIdentifier}/${id}`
+            });
+        } catch (error) {
+            console.error(`Error playing track:`, error);
+        }
+    
+    } else if (config.musicProvider.provider === 'spotify') {
+        try {
+            await hass.callService('media_player', 'play_media', {
+                entity_id: hass.states[config.activePlayer].state,
+                media_content_type: type,
+                media_content_id: `https://open.spotify.com/${type}/${id}`
+            });
+        } catch (error) {
+            console.error(`Error playing playlist:`, error);
+        }
 
-    try {
-        await hass.callService('media_player', 'play_media', {
-            entity_id: hass.states[config.activePlayer].state,
-            media_content_type: 'music',
-            media_content_id: `plex://${machineIdentifier}/${trackId}`
-        });
-    } catch (error) {
-        console.error(`Error playing track:`, error);
+
     }
 }
 
-const timestamp = 1715850304691;
+class SpotifyAPI {
+    constructor() {
+        this.clientId = '2d7736f59bd547e98f804ab849905cbf';
+        this.clientSecret = '084ba0e7c00744c08285429516092704';
+        this.redirectUri = 'https://my.home-assistant.io/redirect/oauth/';
+        this.refreshToken = 'AQC-oJl3-bZ78bDBp5Et_DVxJtI-y6hjYNmcD0HSCHOs7HLZ-nlMybPymTf2OJMbcqEFFzpCTMwr8huDtOzbK6GE7bs5oIaJ4ASxNPqvFQzx1kqLmkwBBsYjs1S4SkS_eBQ';
+        this.accessToken = null;
+    }
+
+    async authenticate() {
+        try {
+            const authHeader = 'Basic ' + btoa(`${this.clientId}:${this.clientSecret}`);
+
+            const response = await fetch('https://accounts.spotify.com/api/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': authHeader
+                },
+                body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: this.refreshToken
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Errore durante l\'ottenimento del nuovo access token: ' + response.statusText);
+            }
+
+            const data = await response.json();
+            this.accessToken = data.access_token;
+        } catch (error) {
+            console.error('Errore durante l\'ottenimento del nuovo access token:', error);
+            throw error;
+        }
+    }
+
+    async getPlaylists() {
+        try {
+            if (!this.accessToken) {
+                throw new Error('Token di accesso non valido. Esegui prima l\'autenticazione.');
+            }
+
+            const response = await fetch('https://api.spotify.com/v1/me/playlists', {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + this.accessToken
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Errore durante il recupero delle playlist da Spotify: ' + response.statusText);
+            }
+
+            const data = await response.json();
+            const playlists = data.items.map(item => {
+                return {
+                    playlistId: item.id,
+                    playlistName: item.name,
+                    description: item.description,
+                    playlistLength: item.tracks.total,
+                    playlistImageUrl: item.images[0].url
+                };
+            });
+
+            return playlists;
+        } catch (error) {
+            console.error('Errore durante il recupero delle playlist da Spotify:', error);
+            throw error;
+        }
+    }
+
+    async getPlaylistTracks(playlistId) {
+        try {
+            if (!this.accessToken) {
+                throw new Error('Token di accesso non valido. Esegui prima l\'autenticazione.');
+            }
+
+            const response = await fetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': 'Bearer ' + this.accessToken
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Errore durante il recupero delle tracce della playlist da Spotify: ' + response.statusText);
+            }
+
+            const data = await response.json();
+            const tracks = data.items.map(item => {
+                return {
+                    trackId: item.track.id,
+                    name: item.track.name,
+                    authorName: item.track.artists[0].name,
+                    albumName: item.track.album.name,
+                    duration: item.track.duration_ms
+                };
+            });
+
+            return tracks;
+        } catch (error) {
+            console.error('Errore durante il recupero delle tracce della playlist da Spotify:', error);
+            throw error;
+        }
+    }
+}
+
+const timestamp = 1716185432637;
 const scriptSrc = `/local/MyMusicCardBundle.js?v=${timestamp}`;
 
 
@@ -909,8 +1031,6 @@ class MyMusicCard extends HTMLElement {
     }
 
     async handleProvider() {
-        console.log("this._config", this._config);
-        console.log("this._config.musicProvider.provider ", this._config.musicProvider.provider);
         switch (this._config.musicProvider.provider) {
             case "plex":
                 await this.handlePlexProvider();
@@ -928,7 +1048,6 @@ class MyMusicCard extends HTMLElement {
 
     async handlePlexProvider() {
         await this.retrieveMachineIdentifier();
-        console.log("hass!!!", this._hass);
         try {
             if (this._config.sourceType === "library") {
                 const musicLibraryId = await this.retrieveMusicLibraryId();
@@ -936,7 +1055,6 @@ class MyMusicCard extends HTMLElement {
                 this.populateArtistList(artistLibrary);
             } else if (this._config.sourceType === "playlist") {
                 const playlists = await this.retrievePlexPlaylists();
-                console.log("playlists!: ", playlists);
                 this.populatePlaylistList(playlists);
             }
         } catch (error) {
@@ -944,10 +1062,21 @@ class MyMusicCard extends HTMLElement {
         }
     }
     
+    async handleSpotifyProvider() {
+        try {
+            // Autenticazione con Spotify
+            const spotifyAPI = new SpotifyAPI();
+            await spotifyAPI.authenticate();
 
-    handleSpotifyProvider() {
-        console.log("Mi occuperò di Spotify più tardi");
+            // Ottenere le playlist dell'utente
+            const playlists = await spotifyAPI.getPlaylists();
+            // Popolare la lista delle playlist nell'interfaccia
+            this.populatePlaylistList(playlists);
+        } catch (error) {
+            console.error("Errore durante il recupero delle playlist da Spotify:", error);
+        }
     }
+
 
     handleRadioProvider() {
         console.log("Mi occuperò delle radio più tardi");
@@ -1187,10 +1316,12 @@ class MyMusicCard extends HTMLElement {
                 playlistItem.appendChild(tracksCount);
     
                 // Durata totale della playlist
-                const totalDuration = document.createElement("div");
-                totalDuration.classList.add("total-duration");
-                totalDuration.textContent = `Duration: ${formatDuration(playlist.playlistDuration)}`;
-                playlistItem.appendChild(totalDuration);
+                if (this._config.musicProvider.provider == "plex") {
+                    const totalDuration = document.createElement("div");
+                    totalDuration.classList.add("total-duration");
+                    totalDuration.textContent = `Duration: ${formatDuration(playlist.playlistDuration)}`;
+                    playlistItem.appendChild(totalDuration);
+                }
     
                 // Aggiungi un gestore di eventi al clic sulla playlist
                 playlistItem.addEventListener("click", () => {
@@ -1201,6 +1332,9 @@ class MyMusicCard extends HTMLElement {
             }
         });
     }
+
+
+    
         
 
     
@@ -1248,7 +1382,7 @@ class MyMusicCard extends HTMLElement {
         playButton.textContent = "Riproduci";
         playButton.addEventListener("click", (event) => {
             event.stopPropagation();
-            playOnSonos(this._hass, this._config, this._machineIdentifier, artist.artistKey);
+            playOnSonos(this._hass, this._config, this._machineIdentifier, "music", artist.artistKey);
         });
         artistDetailHeaderInfo.appendChild(playButton);
     
@@ -1365,7 +1499,7 @@ class MyMusicCard extends HTMLElement {
         playButton.textContent = "Riproduci";
         playButton.addEventListener("click", (event) => {
             event.stopPropagation();
-            playOnSonos(this._hass, this._config, this._machineIdentifier, album.albumKey);
+            playOnSonos(this._hass, this._config, this._machineIdentifier, "music", album.albumKey);
         });
         albumDetailHeaderInfo.appendChild(playButton);
 
@@ -1402,7 +1536,7 @@ class MyMusicCard extends HTMLElement {
                     // Aggiungi un gestore di eventi al clic sull'icona per gestire l'evento clic sulla traccia
                     triangleIcon.addEventListener("click", (event) => {
                         event.stopPropagation();
-                        playOnSonos(this._hass, this._config, this._machineIdentifier, track.trackId);
+                        playOnSonos(this._hass, this._config, this._machineIdentifier, "music", track.trackId);
                     });
 
                     // Aggiungi la durata della traccia
@@ -1474,88 +1608,85 @@ class MyMusicCard extends HTMLElement {
         const playButton = document.createElement("button");
         playButton.classList.add("play-button");
         playButton.textContent = "Riproduci";
-
+    
         playButton.addEventListener("click", (event) => {
             event.stopPropagation();
-            playOnSonos(this._hass, this._config, this._machineIdentifier, playlist.playlistId);
+            playOnSonos(this._hass, this._config, this._machineIdentifier, "playlist", playlist.playlistId);
         });
-
-
+    
         playlistInfo.appendChild(playButton);
-    
         playlistHeader.appendChild(playlistInfo);
-    
         playlistDetail.appendChild(playlistHeader);
     
-        // Effettua la chiamata alle API per ottenere la lista delle tracce della playlist
+        let tracks;
         try {
-            const tracks = await this.retrievePlaylistTracks(playlist.playlistId);
+            if (this._config.musicProvider.provider === 'plex') {
+                tracks = await this.retrievePlaylistTracks(playlist.playlistId);
+            } else if (this._config.musicProvider.provider === 'spotify') {
+                const spotifyAPI = new SpotifyAPI();
+                await spotifyAPI.authenticate();
+    
+                tracks = await spotifyAPI.getPlaylistTracks(playlist.playlistId);
+            } else {
+                console.error("Provider non supportato:", this._config.musicProvider.provider);
+            }
     
             if (tracks && Array.isArray(tracks)) {
-                console.log("tracks: ", tracks);
-                // Crea un div per contenere la lista delle tracce
                 const trackList = document.createElement("div");
                 trackList.classList.add("track-list");
     
                 tracks.forEach(track => {
-                    // Crea un div per ogni traccia
                     const trackItem = document.createElement("div");
                     trackItem.classList.add("track-item");
     
-                    // Aggiungi l'icona del triangolo a sinistra
                     const triangleIcon = document.createElement("div");
                     triangleIcon.classList.add("triangle-icon");
                     triangleIcon.textContent = "\u25B6";
                     trackItem.appendChild(triangleIcon);
     
-                    // Contenitore per il titolo, l'autore e l'album
                     const trackDetails = document.createElement("div");
                     trackDetails.classList.add("track-details");
     
-                    // Titolo del brano in grassetto
                     const trackTitle = document.createElement("div");
                     trackTitle.classList.add("track-title");
                     trackTitle.textContent = track.name;
                     trackDetails.appendChild(trackTitle);
     
-                    // Autore e Album
                     const authorAlbum = document.createElement("div");
                     authorAlbum.classList.add("author-album");
-                    authorAlbum.textContent = `${track.authorName} - ${track.albumName}`;
+                    authorAlbum.textContent = `${track.authorName || ''} - ${track.albumName || ''}`;
                     trackDetails.appendChild(authorAlbum);
     
                     trackItem.appendChild(trackDetails);
     
-                    // Aggiungi la durata del brano allineata a destra
                     const trackDuration = document.createElement("div");
                     trackDuration.classList.add("track-duration");
-                    trackDuration.textContent = formatDuration(track.duration);
+                    trackDuration.textContent = formatDuration(track.duration || 0);
                     trackItem.appendChild(trackDuration);
-    
-                    // Aggiungi un gestore di eventi per il clic sull'icona del triangolo
+
+                                       
                     triangleIcon.addEventListener("click", (event) => {
                         event.stopPropagation();
-                        playOnSonos(this._hass, this._config, this._machineIdentifier, track.trackId);
+                            playOnSonos(this._hass, this._config, this._machineIdentifier, "track", track.trackId);
                     });
     
                     trackList.appendChild(trackItem);
                 });
     
                 playlistDetail.appendChild(trackList);
-            }    
-    
+            } else {
+                console.error("Nessuna traccia trovata o il formato delle tracce non è un array.");
+            }
         } catch (error) {
             console.error("Errore durante il recupero delle tracce della playlist:", error);
         }
     
-        // Aggiungi un gestore di eventi per nascondere l'elemento quando ci si clicca sopra
         playlistDetail.addEventListener("click", () => {
             this.hidePlaylistDetail();
         });
     
         cardContent.appendChild(playlistDetail);
     }
-    
     
  
     
