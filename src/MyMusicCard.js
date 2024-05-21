@@ -89,7 +89,14 @@ class MyMusicCard extends HTMLElement {
     async handleSpotifyProvider() {
         try {
             // Autenticazione con Spotify
-            const spotifyAPI = new SpotifyAPI();
+            const spClientId=this._config.clientId
+            const spClientSecret=this._config.clientSecret 
+            const spRedirectUri=this._config.redirectUri
+            const spRefreshToken=this._config.refreshToken
+
+            
+            const spotifyAPI = new SpotifyAPI(spClientId, spClientSecret, spRedirectUri, spRefreshToken);
+            console.log("config3", this._config);
             await spotifyAPI.authenticate();
 
             // Ottenere le playlist dell'utente
@@ -147,9 +154,10 @@ class MyMusicCard extends HTMLElement {
 
 
     doCheckConfig() {
-        if (!this._config || !this._config.player || !this._config.player.activePlayer) {
-            throw new Error("Please define an activePlayer!");
-        }
+        console.log("Controllo da eliminare: doCheckConfig")
+//        if (!this._config || !this._config.player || !this._config.player.activePlayer) {
+//            throw new Error("Please define an activePlayer!");
+//        }
     }
 
 
@@ -647,7 +655,12 @@ class MyMusicCard extends HTMLElement {
             if (this._config.musicProvider.provider === 'plex') {
                 tracks = await this.retrievePlaylistTracks(playlist.playlistId);
             } else if (this._config.musicProvider.provider === 'spotify') {
-                const spotifyAPI = new SpotifyAPI();
+                const spClientId=this._config.clientId
+                const spClientSecret=this._config.clientSecret 
+                const spRedirectUri=this._config.redirectUri
+                const spRefreshToken=this._config.refreshToken
+    
+                const spotifyAPI = new SpotifyAPI(spClientId, spClientSecret, spRedirectUri, spRefreshToken);
                 await spotifyAPI.authenticate();
     
                 tracks = await spotifyAPI.getPlaylistTracks(playlist.playlistId);

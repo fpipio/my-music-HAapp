@@ -75,8 +75,8 @@ form {
 
 .album-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    grid-gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    gap: 10px;
 }
 
 .album-item {
@@ -250,42 +250,6 @@ function getMachineIdentifier(plexServerUrl, authToken) {
     .catch(error => {
         console.error("Errore durante il recupero dell'ID della libreria della musica:", error);
     });
-}
-
-
-async function getMusicLibraries(plexServerUrl, authToken) {
-    try {
-        const response = await fetch(`${plexServerUrl}/library/sections`, {
-            headers: {
-                "X-Plex-Token": authToken,
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error("Errore durante il recupero della lista delle librerie");
-        }
-
-        const data = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(data, "text/xml");
-        const libraries = xmlDoc.querySelectorAll('Directory[type="artist"]');
-
-        const musicLibraries = [];
-        libraries.forEach(library => {
-            const libraryName = library.getAttribute("title");
-            const libraryId = library.getAttribute("key");
-            const libraryData = {
-                libraryName: libraryName,
-                libraryId: libraryId
-            };
-            musicLibraries.push(libraryData);
-        });
-
-        return musicLibraries;
-    } catch (error) {
-        console.error("Errore durante il recupero delle librerie musicali:", error);
-        throw error;
-    }
 }
 
 
@@ -575,194 +539,254 @@ async function getPlaylistTracks(playlistId, plexServerUrl, authToken) {
 }
 
 class MyMusicCardEditor extends HTMLElement {
-    // private properties
+    // Proprietà private
     _config;
     _hass;
     _elements = {};
 
-    // Lifecycle
+    // Ciclo di vita
     constructor() {
         super();
+        console.log("editor:constructor()");
+        this.doEditor();
         this.doStyle();
         this.doAttach();
-        this.doListen();
-    }
-
-    set hass(hass) {
-        this._hass = hass;
-        // Implement if needed
-    }
-
-    onChanged(event) {
-        this.doMessageForUpdate(event);
-    }
-
-    // Jobs
-    async doEditor() {
-        // Inizializza i campi di input con i valori della configurazione
-        this._elements.editor.innerHTML = `
-            <div id="errorMessage" style="color: red; display: none;">Errore: compila tutti i campi obbligatori.</div>
-            <div class="wrapper">
-                <div class="section">
-                    <h2>Player</h2>
-                    <label class="label" for="activePlayer">Active Player:</label>
-                    <input class="value" id="activePlayer" value="${this._config.player && this._config.player.activePlayer ? this._config.player.activePlayer : ''}">
-                    </input>
-                </div>
-                <div class="section">
-                    <h2>Music Provider</h2>
-                    <label class="label" for="provider">Provider:</label>
-                    <select class="value" id="provider">
-                        <option value="plex" ${this._config.musicProvider && this._config.musicProvider.provider === 'plex' ? 'selected' : ''}>Plex</option>
-                        <option value="spotify" ${this._config.musicProvider && this._config.musicProvider.provider === 'spotify' ? 'selected' : ''}>Spotify</option>
-                        <option value="radio" ${this._config.musicProvider && this._config.musicProvider.provider === 'radio' ? 'selected' : ''}>Radio</option>
-                    </select>
-                </div>
-                <div class="section">
-                    <h2>Other Settings</h2>
-                    <label class="label" for="plexServerUrl">Plex Server URL:</label>
-                    <input class="value" id="plexServerUrl" value="${this._config.plexServerUrl || ''}">
-                    </input>
-                    <label class="label" for="authToken">Auth Token:</label>
-                    <input class="value" id="authToken" value="${this._config.authToken || ''}">
-                    </input>
-                    <label class="label" for="sourceType">Source Type:</label>
-                    <select class="value" id="sourceType">
-                        <option value="library" ${this._config.sourceType === 'library' ? 'selected' : ''}>Library</option>
-                        <option value="playlist" ${this._config.sourceType === 'playlist' ? 'selected' : ''}>Playlist</option>
-                    </select>
-                    <div id="activeLibrarySection" style="display: ${this._config.sourceType === 'library' ? 'block' : 'none'};">
-                        <label class="label" for="activeLibrary">Active Library:</label>
-                        <input class="value" list="libraryOptions" id="activeLibrary">
-                        <datalist id="libraryOptions"></datalist>
-                    </div>
-                </div>
-            </div>
-        `;
-
-        // Carica le librerie musicali solo se la configurazione contiene plexServerUrl e authToken
-        if (this._config.plexServerUrl && this._config.authToken && this._config.sourceType === 'library') {
-            try {
-                const libraries = await getMusicLibraries(this._config.plexServerUrl, this._config.authToken);
-                const activeLibraryDatalist = this._elements.editor.querySelector("#libraryOptions");
-                const activeLibraryInput = this._elements.editor.querySelector("#activeLibrary");
-                libraries.forEach(library => {
-                    const option = document.createElement("option");
-                    option.value = library.libraryName;
-                    activeLibraryDatalist.appendChild(option);
-                });
-                activeLibraryInput.setAttribute("list", "libraryOptions");
-
-                // Imposta il valore dell'input se esiste nella configurazione
-                if (this._config.activeLibrary) {
-                    activeLibraryInput.value = this._config.activeLibrary;
-                }
-            } catch (error) {
-                console.error('Errore durante il recupero delle librerie musicali:', error);
-            }
-        }
-
         this.doQueryElements();
         this.doListen();
     }
-    
+
+    setConfig(config) {
+        console.log("setConfig(config)");
+        this._config = config;
+        // Se activePlayer non è definito o è vuoto, impostalo al valore predefinito
+        if (!this._config.player || !this._config.player.activePlayer) {
+            this._config.player = this._config.player || {};
+            this._config.player.activePlayer = 'input_text.active_player';
+        }
+        this.doUpdateConfig();
+    }
+
+    set hass(hass) {
+        console.log("editor.hass()");
+        this._hass = hass;
+        this.doUpdateHass();
+    }
+
+    onChanged(event) {
+        console.log("editor.onChanged()");
+        this.doMessageForUpdate(event);
+    }
+
+    // Azioni
+    doEditor() {
+        console.log("doEditor()");
+        this._elements.editor = document.createElement("form");
+        this._elements.editor.innerHTML = `
+            <div class="grid-container">
+                <div class="grid-item">
+                    <label class="label" for="activePlayer">Active Player:</label>
+                    <input class="value" id="activePlayer"></input>
+                </div>
+                <div class="grid-item">
+                    <label class="label" for="musicProvider">Music Provider:</label>
+                    <select class="value" id="musicProvider">
+                        <option value="plex">Plex</option>
+                        <option value="spotify">Spotify</option>
+                        <option value="radio">Radio</option>
+                    </select>
+                </div>
+                <div class="grid-item plex-only">
+                    <label class="label" for="plexServerUrl">Plex Server URL:</label>
+                    <input class="value" id="plexServerUrl"></input>
+                </div>
+                <div class="grid-item plex-only">
+                    <label class="label" for="authToken">Auth Token:</label>
+                    <input class="value" id="authToken"></input>
+                </div>
+                <div class="grid-item plex-only">
+                    <label class="label" for="sourceType">Source Type:</label>
+                    <select class="value" id="sourceType">
+                        <option value="">Select Source Type</option>
+                        <option value="library">Library</option>
+                        <option value="playlist">Playlist</option>
+                    </select>
+                </div>
+                <div class="grid-item plex-only" id="activeLibraryRow" style="display: none;">
+                    <label class="label" for="activeLibrary">Active Library:</label>
+                    <input class="value" id="activeLibrary"></input>
+                </div>
+                <div class="grid-item spotify-only" id="spotifyFields" style="display: none;">
+                    <label class="label" for="clientId">Client ID:</label>
+                    <input class="value" id="clientId"></input>
+                    <label class="label" for="clientSecret">Client Secret:</label>
+                    <input class="value" id="clientSecret"></input>
+                    <label class="label" for="redirectUri">Redirect URI:</label>
+                    <input class="value" id="redirectUri"></input>
+                    <label class="label" for="refreshToken">Refresh Token:</label>
+                    <input class="value" id="refreshToken"></input>
+                </div>
+            </div>
+        `;
+    }
 
     doStyle() {
+        console.log("doStyle()");
         this._elements.style = document.createElement("style");
-        this._elements.style.textContent = styles;
+        this._elements.style.textContent = `
+            .grid-container {
+                display: grid;
+                grid-template-columns: repeat(1, .7fr);
+                gap: 1em;
+                align-items: center;
+            }
+            .grid-item {
+                display: flex;
+                flex-direction: column;
+            }
+            .label, .value {
+                display: block;
+            }
+            .plex-only {
+                margin-left: 50px;
+            }
+        `;
     }
 
     doAttach() {
+        console.log("doAttach()");
         this.attachShadow({ mode: "open" });
-        const style = document.createElement("style");
-        style.textContent = styles;
-        this.shadowRoot.appendChild(style);
-        this._elements.editor = document.createElement("form");
-        this._elements.editor.id = "editor";
-        this.shadowRoot.appendChild(this._elements.editor);
-    }   
-    
-    setConfig(config) {
-        this._config = config;
-        if (this._config) {
-            this.doEditor();
-        }
+        this.shadowRoot.append(this._elements.style, this._elements.editor);
     }
 
     doQueryElements() {
-        this._elements.plexServerUrl = this.shadowRoot.querySelector("#plexServerUrl");
-        this._elements.authToken = this.shadowRoot.querySelector("#authToken");
-        this._elements.activeLibrary = this.shadowRoot.querySelector("#activeLibrary");
-        this._elements.activePlayer = this.shadowRoot.querySelector("#activePlayer");
-        this._elements.provider = this.shadowRoot.querySelector("#provider");
-        this._elements.sourceType = this.shadowRoot.querySelector("#sourceType");
+        console.log("doQueryElements()");
+        this._elements.activePlayer = this._elements.editor.querySelector("#activePlayer");
+        this._elements.musicProvider = this._elements.editor.querySelector("#musicProvider");
+        this._elements.plexServerUrl = this._elements.editor.querySelector("#plexServerUrl");
+        this._elements.authToken = this._elements.editor.querySelector("#authToken");
+        this._elements.sourceType = this._elements.editor.querySelector("#sourceType");
+        this._elements.activeLibrary = this._elements.editor.querySelector("#activeLibrary");
+        this._elements.activeLibraryRow = this._elements.editor.querySelector("#activeLibraryRow");
+        this._elements.clientId = this._elements.editor.querySelector("#clientId");
+        this._elements.clientSecret = this._elements.editor.querySelector("#clientSecret");
+        this._elements.redirectUri = this._elements.editor.querySelector("#redirectUri");
+        this._elements.refreshToken = this._elements.editor.querySelector("#refreshToken");
+        this._elements.spotifyFields = this._elements.editor.querySelector(".spotify-only");
+        console.log("qui: ", this._elements.spotifyFields);
     }
 
     doListen() {
-        // Assicurati che gli elementi siano stati trovati prima di aggiungere gli event listener
-        if (this._elements.plexServerUrl && this._elements.authToken && this._elements.activeLibrary && this._elements.activePlayer && this._elements.provider && this._elements.sourceType) {
-            this._elements.plexServerUrl.addEventListener("input", this.onChanged.bind(this));
-            this._elements.authToken.addEventListener("input", this.onChanged.bind(this));
-            this._elements.activeLibrary.addEventListener("change", this.onChanged.bind(this));
-            this._elements.activePlayer.addEventListener("input", this.onChanged.bind(this));
-            this._elements.provider.addEventListener("change", this.onChanged.bind(this));
-            this._elements.sourceType.addEventListener("change", this.onChanged.bind(this));
-        }
+        console.log("doListen()");
+        this._elements.activePlayer.addEventListener("focusout", this.onChanged.bind(this));
+        this._elements.musicProvider.addEventListener("change", this.onChanged.bind(this));
+        this._elements.plexServerUrl.addEventListener("focusout", this.onChanged.bind(this));
+        this._elements.authToken.addEventListener("focusout", this.onChanged.bind(this));
+        this._elements.sourceType.addEventListener("change", this.onChanged.bind(this));
+        this._elements.activeLibrary.addEventListener("focusout", this.onChanged.bind(this));
+        this._elements.clientId.addEventListener("focusout", this.onChanged.bind(this)); 
+        this._elements.clientSecret.addEventListener("focusout", this.onChanged.bind(this));
+        this._elements.redirectUri.addEventListener("focusout", this.onChanged.bind(this)); 
+        this._elements.refreshToken.addEventListener("focusout", this.onChanged.bind(this));
+
+        this._elements.musicProvider.addEventListener("change", this.updateVisibility.bind(this));
+        this._elements.sourceType.addEventListener("change", this.updateVisibility.bind(this));
     }
 
-doMessageForUpdate(changedEvent) {
-    const newConfig = Object.assign({}, this._config);
-    const errorMessage = this.shadowRoot.querySelector("#errorMessage");
-    if (changedEvent.target.id === "plexServerUrl") {
-        newConfig.plexServerUrl = changedEvent.target.value;
-    } else if (changedEvent.target.id === "authToken") {
-        newConfig.authToken = changedEvent.target.value;
-    } else if (changedEvent.target.id === "activeLibrary") {
-        newConfig.activeLibrary = changedEvent.target.value;
-    } else if (changedEvent.target.id === "activePlayer") {
-        newConfig.player = newConfig.player || {};
-        newConfig.player.activePlayer = changedEvent.target.value;
-    } else if (changedEvent.target.id === "provider") {
-        newConfig.musicProvider = newConfig.musicProvider || {};
-        newConfig.musicProvider.provider = changedEvent.target.value;
-        // Se il provider è impostato su "plex", controlla che plexServerUrl, authToken e sourceType siano compilati
-        if (changedEvent.target.value === "plex") {
-            if (!newConfig.plexServerUrl || !newConfig.authToken || !newConfig.sourceType) {
-                errorMessage.style.display = "block";
-                return;
-            }
-        }
-    } else if (changedEvent.target.id === "sourceType") {
-        newConfig.sourceType = changedEvent.target.value;
-        this.toggleActiveLibraryFieldVisibility(newConfig.sourceType);
-    }
-    errorMessage.style.display = "none"; // Nascondi il messaggio di errore se non ci sono problemi
-    const messageEvent = new CustomEvent("config-changed", {
-        detail: { config: newConfig },
-        bubbles: true,
-        composed: true,
-    });
-    this.dispatchEvent(messageEvent);
-}
-        
-    async loadMusicLibraries() {
-        try {
-            const libraries = await getMusicLibraries(this._config.plexServerUrl, this._config.authToken);
-            const libraryOptions = libraries.map(library => `<option value="${library.libraryId}">${library.libraryName}</option>`).join('');
-            const activeLibrarySelect = this.shadowRoot.querySelector("#activeLibrary");
-            activeLibrarySelect.innerHTML = libraryOptions;
-        } catch (error) {
-            console.error('Errore durante il recupero delle librerie musicali:', error);
-        }
+    doUpdateConfig() {
+        console.log("doUpdateConfig()");
+        this._elements.activePlayer.value = this._config.player && this._config.player.activePlayer ? this._config.player.activePlayer : 'input_text.active_player';
+        this._elements.musicProvider.value = this._config.musicProvider && this._config.musicProvider.provider ? this._config.musicProvider.provider : '';
+        this._elements.plexServerUrl.value = this._config.plexServerUrl || '';
+        this._elements.authToken.value = this._config.authToken || '';
+        this._elements.sourceType.value = this._config.sourceType || '';
+        this._elements.activeLibrary.value = this._config.activeLibrary || '';
+        this._elements.clientId.value = this._config.clientId || '';
+        this._elements.clientSecret.value = this._config.clientSecret || '';
+        this._elements.redirectUri.value = this._config.redirectUri || '';
+        this._elements.refreshToken.value = this._config.refreshToken || '';
+
+        this.updateVisibility();
     }
 
-    connectedCallback() {
-        // Non è necessario chiamare doEditor() qui poiché viene già chiamato all'interno di setConfig() quando l'elemento è connesso
+    updateVisibility() {
+        console.log('Update visibility called');
+        const isPlex = this._elements.musicProvider.value === 'plex';
+        const isSpotify = this._elements.musicProvider.value === 'spotify';
+        const isLibrary = this._elements.sourceType.value === 'library';
+        const isPlaylist = this._elements.sourceType.value === 'playlist';
+    
+        console.log('isPlex:', isPlex);
+        console.log('isSpotify:', isSpotify);
+        console.log('isLibrary:', isLibrary);
+        console.log('isPlaylist:', isPlaylist);
+    
+        this._elements.editor.querySelectorAll('.plex-only').forEach(el => {
+            el.style.display = isPlex ? 'table-row' : 'none';
+        });
+    
+        console.log('Active Library Row:', this._elements.activeLibraryRow);
+        if (this._elements.activeLibraryRow) {
+            this._elements.activeLibraryRow.style.display = isPlex && isLibrary && !isPlaylist ? 'table-row' : 'none'; // Aggiunto la condizione !isPlaylist
+            console.log("table-row : none");
+        }
+    
+        console.log('Spotify Fields:', this._elements.spotifyFields);
+    
+        if (isSpotify) {
+            this._elements.spotifyFields.style.display = 'table-row';
+        } else {
+            this._elements.spotifyFields.style.display = 'none';
+        }
+    }
+    
+    
+
+    doUpdateHass() {
+        console.log("doUpdateHass()");
     }
 
-    toggleActiveLibraryFieldVisibility(sourceType) {
-        const activeLibrarySection = this._elements.editor.querySelector("#activeLibrarySection");
-        activeLibrarySection.style.display = sourceType === 'library' ? 'block' : 'none';
+    doMessageForUpdate(changedEvent) {
+        console.log("doMessageForUpdate(changedEvent)");
+        const newConfig = Object.assign({}, this._config);
+        if (changedEvent.target.id == "activePlayer") {
+            newConfig.player = newConfig.player || {};
+            newConfig.player.activePlayer = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "musicProvider") {
+            newConfig.musicProvider = newConfig.musicProvider || {};
+            newConfig.musicProvider.provider = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "plexServerUrl") {
+            newConfig.plexServerUrl = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "authToken") {
+            newConfig.authToken = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "sourceType") {
+            newConfig.sourceType = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "activeLibrary") {
+            newConfig.activeLibrary = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "clientId") {
+            newConfig.clientId = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "clientSecret") {
+            newConfig.clientSecret = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "redirectUri") {
+            newConfig.redirectUri = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        } else if (changedEvent.target.id == "refreshToken") {
+            newConfig.refreshToken = changedEvent.target.value;
+            console.log("changedEvent.target.value", changedEvent.target.value);
+        }
+        const messageEvent = new CustomEvent("config-changed", {
+            detail: { config: newConfig },
+            bubbles: true,
+            composed: true,
+        });
+        this.dispatchEvent(messageEvent);
     }
 }
 
@@ -805,7 +829,7 @@ async function playOnSonos(hass, config, machineIdentifier, type, id) {
         try {
             console.log("Config", config.musicProvider.provider);
             await hass.callService('media_player', 'play_media', {
-                entity_id: hass.states[config.activePlayer].state,
+                entity_id: hass.states[config.player.activePlayer].state,
                 media_content_type: 'music',
                 media_content_id: `plex://${machineIdentifier}/${id}`
             });
@@ -816,7 +840,7 @@ async function playOnSonos(hass, config, machineIdentifier, type, id) {
     } else if (config.musicProvider.provider === 'spotify') {
         try {
             await hass.callService('media_player', 'play_media', {
-                entity_id: hass.states[config.activePlayer].state,
+                entity_id: hass.states[config.player.activePlayer].state,
                 media_content_type: type,
                 media_content_id: `https://open.spotify.com/${type}/${id}`
             });
@@ -829,12 +853,19 @@ async function playOnSonos(hass, config, machineIdentifier, type, id) {
 }
 
 class SpotifyAPI {
-    constructor() {
-        this.clientId = '2d7736f59bd547e98f804ab849905cbf';
-        this.clientSecret = '084ba0e7c00744c08285429516092704';
-        this.redirectUri = 'https://my.home-assistant.io/redirect/oauth/';
-        this.refreshToken = 'AQC-oJl3-bZ78bDBp5Et_DVxJtI-y6hjYNmcD0HSCHOs7HLZ-nlMybPymTf2OJMbcqEFFzpCTMwr8huDtOzbK6GE7bs5oIaJ4ASxNPqvFQzx1kqLmkwBBsYjs1S4SkS_eBQ';
+    constructor(spClientId, spClientSecret, spRedirectUri, spRefreshToken) {
+//        this.clientId = '2d7736f59bd547e98f804ab849905cbf';
+//        this.clientSecret = '084ba0e7c00744c08285429516092704';
+//        this.redirectUri = 'https://my.home-assistant.io/redirect/oauth/';
+//        this.refreshToken = 'AQC-oJl3-bZ78bDBp5Et_DVxJtI-y6hjYNmcD0HSCHOs7HLZ-nlMybPymTf2OJMbcqEFFzpCTMwr8huDtOzbK6GE7bs5oIaJ4ASxNPqvFQzx1kqLmkwBBsYjs1S4SkS_eBQ';
+
+        this.clientId = spClientId;
+        this.clientSecret = spClientSecret;
+        this.redirectUri = spRedirectUri;
+        this.refreshToken = spRefreshToken;
         this.accessToken = null;
+        
+        
     }
 
     async authenticate() {
@@ -934,9 +965,44 @@ class SpotifyAPI {
             throw error;
         }
     }
+    doMessageForUpdate(changedEvent) {
+        console.log("doMessageForUpdate(changedEvent)");
+        const newConfig = Object.assign({}, this._config);
+        if (changedEvent.target.id == "activePlayer") {
+            newConfig.player = newConfig.player || {};
+            newConfig.player.activePlayer = changedEvent.target.value;
+        } else if (changedEvent.target.id == "musicProvider") {
+            newConfig.musicProvider = newConfig.musicProvider || {};
+            newConfig.musicProvider.provider = changedEvent.target.value;
+        } else if (changedEvent.target.id == "plexServerUrl") {
+            newConfig.plexServerUrl = changedEvent.target.value;
+        } else if (changedEvent.target.id == "authToken") {
+            newConfig.authToken = changedEvent.target.value;
+        } else if (changedEvent.target.id == "sourceType") {
+            newConfig.sourceType = changedEvent.target.value;
+        } else if (changedEvent.target.id == "activeLibrary") {
+            newConfig.activeLibrary = changedEvent.target.value;
+        } else if (changedEvent.target.id == "clientId") {
+            newConfig.clientId = changedEvent.target.value;
+        } else if (changedEvent.target.id == "clientSecret") {
+            newConfig.clientSecret = changedEvent.target.value;
+        } else if (changedEvent.target.id == "redirectUri") {
+            newConfig.redirectUri = changedEvent.target.value;
+        } else if (changedEvent.target.id == "refreshToken") {
+            newConfig.refreshToken = changedEvent.target.value;
+        }
+        const messageEvent = new CustomEvent("config-changed", {
+            detail: { config: newConfig },
+            bubbles: true,
+            composed: true,
+        });
+        this.dispatchEvent(messageEvent);
+    }
+
+
 }
 
-const timestamp = 1716186090762;
+const timestamp = 1716220662008;
 const scriptSrc = `/local/MyMusicCardBundle.js?v=${timestamp}`;
 
 
@@ -1011,7 +1077,14 @@ class MyMusicCard extends HTMLElement {
     async handleSpotifyProvider() {
         try {
             // Autenticazione con Spotify
-            const spotifyAPI = new SpotifyAPI();
+            const spClientId=this._config.clientId;
+            const spClientSecret=this._config.clientSecret; 
+            const spRedirectUri=this._config.redirectUri;
+            const spRefreshToken=this._config.refreshToken;
+
+            
+            const spotifyAPI = new SpotifyAPI(spClientId, spClientSecret, spRedirectUri, spRefreshToken);
+            console.log("config3", this._config);
             await spotifyAPI.authenticate();
 
             // Ottenere le playlist dell'utente
@@ -1069,9 +1142,10 @@ class MyMusicCard extends HTMLElement {
 
 
     doCheckConfig() {
-        if (!this._config || !this._config.player || !this._config.player.activePlayer) {
-            throw new Error("Please define an activePlayer!");
-        }
+        console.log("Controllo da eliminare: doCheckConfig");
+//        if (!this._config || !this._config.player || !this._config.player.activePlayer) {
+//            throw new Error("Please define an activePlayer!");
+//        }
     }
 
 
@@ -1569,7 +1643,12 @@ class MyMusicCard extends HTMLElement {
             if (this._config.musicProvider.provider === 'plex') {
                 tracks = await this.retrievePlaylistTracks(playlist.playlistId);
             } else if (this._config.musicProvider.provider === 'spotify') {
-                const spotifyAPI = new SpotifyAPI();
+                const spClientId=this._config.clientId;
+                const spClientSecret=this._config.clientSecret; 
+                const spRedirectUri=this._config.redirectUri;
+                const spRefreshToken=this._config.refreshToken;
+    
+                const spotifyAPI = new SpotifyAPI(spClientId, spClientSecret, spRedirectUri, spRefreshToken);
                 await spotifyAPI.authenticate();
     
                 tracks = await spotifyAPI.getPlaylistTracks(playlist.playlistId);

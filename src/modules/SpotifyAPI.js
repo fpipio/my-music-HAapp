@@ -1,10 +1,17 @@
 class SpotifyAPI {
-    constructor() {
-        this.clientId = '2d7736f59bd547e98f804ab849905cbf';
-        this.clientSecret = '084ba0e7c00744c08285429516092704';
-        this.redirectUri = 'https://my.home-assistant.io/redirect/oauth/';
-        this.refreshToken = 'AQC-oJl3-bZ78bDBp5Et_DVxJtI-y6hjYNmcD0HSCHOs7HLZ-nlMybPymTf2OJMbcqEFFzpCTMwr8huDtOzbK6GE7bs5oIaJ4ASxNPqvFQzx1kqLmkwBBsYjs1S4SkS_eBQ';
+    constructor(spClientId, spClientSecret, spRedirectUri, spRefreshToken) {
+//        this.clientId = '2d7736f59bd547e98f804ab849905cbf';
+//        this.clientSecret = '084ba0e7c00744c08285429516092704';
+//        this.redirectUri = 'https://my.home-assistant.io/redirect/oauth/';
+//        this.refreshToken = 'AQC-oJl3-bZ78bDBp5Et_DVxJtI-y6hjYNmcD0HSCHOs7HLZ-nlMybPymTf2OJMbcqEFFzpCTMwr8huDtOzbK6GE7bs5oIaJ4ASxNPqvFQzx1kqLmkwBBsYjs1S4SkS_eBQ';
+
+        this.clientId = spClientId;
+        this.clientSecret = spClientSecret;
+        this.redirectUri = spRedirectUri;
+        this.refreshToken = spRefreshToken;
         this.accessToken = null;
+        
+        
     }
 
     async authenticate() {
@@ -104,6 +111,41 @@ class SpotifyAPI {
             throw error;
         }
     }
+    doMessageForUpdate(changedEvent) {
+        console.log("doMessageForUpdate(changedEvent)")
+        const newConfig = Object.assign({}, this._config);
+        if (changedEvent.target.id == "activePlayer") {
+            newConfig.player = newConfig.player || {};
+            newConfig.player.activePlayer = changedEvent.target.value;
+        } else if (changedEvent.target.id == "musicProvider") {
+            newConfig.musicProvider = newConfig.musicProvider || {};
+            newConfig.musicProvider.provider = changedEvent.target.value;
+        } else if (changedEvent.target.id == "plexServerUrl") {
+            newConfig.plexServerUrl = changedEvent.target.value;
+        } else if (changedEvent.target.id == "authToken") {
+            newConfig.authToken = changedEvent.target.value;
+        } else if (changedEvent.target.id == "sourceType") {
+            newConfig.sourceType = changedEvent.target.value;
+        } else if (changedEvent.target.id == "activeLibrary") {
+            newConfig.activeLibrary = changedEvent.target.value;
+        } else if (changedEvent.target.id == "clientId") {
+            newConfig.clientId = changedEvent.target.value;
+        } else if (changedEvent.target.id == "clientSecret") {
+            newConfig.clientSecret = changedEvent.target.value;
+        } else if (changedEvent.target.id == "redirectUri") {
+            newConfig.redirectUri = changedEvent.target.value;
+        } else if (changedEvent.target.id == "refreshToken") {
+            newConfig.refreshToken = changedEvent.target.value;
+        }
+        const messageEvent = new CustomEvent("config-changed", {
+            detail: { config: newConfig },
+            bubbles: true,
+            composed: true,
+        });
+        this.dispatchEvent(messageEvent);
+    }
+
+
 }
 
 export default SpotifyAPI;

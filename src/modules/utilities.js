@@ -37,7 +37,7 @@ export async function playOnSonos(hass, config, machineIdentifier, type, id) {
         try {
             console.log("Config", config.musicProvider.provider);
             await hass.callService('media_player', 'play_media', {
-                entity_id: hass.states[config.activePlayer].state,
+                entity_id: hass.states[config.player.activePlayer].state,
                 media_content_type: 'music',
                 media_content_id: `plex://${machineIdentifier}/${id}`
             });
@@ -48,7 +48,7 @@ export async function playOnSonos(hass, config, machineIdentifier, type, id) {
     } else if (config.musicProvider.provider === 'spotify') {
         try {
             await hass.callService('media_player', 'play_media', {
-                entity_id: hass.states[config.activePlayer].state,
+                entity_id: hass.states[config.player.activePlayer].state,
                 media_content_type: type,
                 media_content_id: `https://open.spotify.com/${type}/${id}`
             });
@@ -64,7 +64,7 @@ export async function playOnSonos(hass, config, machineIdentifier, type, id) {
 export async function playSpotifyOnSonos(hass, config, type, id) {
     try {
         await hass.callService('media_player', 'play_media', {
-            entity_id: hass.states[config.activePlayer].state,
+            entity_id: hass.states[config.player.activePlayer].state,
             media_content_type: 'playlist',
             media_content_id: `https://open.spotify.com/${type}/${id}`
         });
