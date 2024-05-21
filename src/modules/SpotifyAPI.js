@@ -1,9 +1,5 @@
 class SpotifyAPI {
     constructor(spClientId, spClientSecret, spRedirectUri, spRefreshToken) {
-//        this.clientId = '2d7736f59bd547e98f804ab849905cbf';
-//        this.clientSecret = '084ba0e7c00744c08285429516092704';
-//        this.redirectUri = 'https://my.home-assistant.io/redirect/oauth/';
-//        this.refreshToken = 'AQC-oJl3-bZ78bDBp5Et_DVxJtI-y6hjYNmcD0HSCHOs7HLZ-nlMybPymTf2OJMbcqEFFzpCTMwr8huDtOzbK6GE7bs5oIaJ4ASxNPqvFQzx1kqLmkwBBsYjs1S4SkS_eBQ';
 
         this.clientId = spClientId;
         this.clientSecret = spClientSecret;
